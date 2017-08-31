@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import hashlib
@@ -8,7 +9,7 @@ import zipfile
 url = 'https://www.dropbox.com/s/anh93ggeh9xtsnr/nat_trained.zip'
 
 # fetch adv_trained model
-#url = 'https://www.dropbox.com/s/9z7tnleh2hrf158/adv_trained.zip'
+# url = 'https://www.dropbox.com/s/9z7tnleh2hrf158/adv_trained.zip'
 
 fname = url.split('/')[-1]  # get the name of the file
 

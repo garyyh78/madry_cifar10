@@ -2,12 +2,13 @@
 
   "_comment": "===== MODEL CONFIGURATION =====",
 
-  "model_dir": "models/a_very_robust_model",
+  "adv_model_dir": "models/adv_trained",
+  "nat_model_dir": "models/naturally_trained",
 
 
   "_comment": "===== DATASET CONFIGURATION =====",
 
-  "data_path": "cifar10_data",
+  "data_path": "cifar-10-batches-py",
 
   "_comment": "===== TRAINING CONFIGURATION =====",
 
@@ -31,15 +32,13 @@
 
   "momentum": 0.9,
 
-
-
   "_comment": "===== EVAL CONFIGURATION =====",
 
   "num_eval_examples": 10000,
 
-  "eval_batch_size": 100,
+  "eval_batch_size": 10,
 
-  "eval_on_cpu": false,
+  "eval_on_cpu": true,
 
 
 
@@ -47,7 +46,7 @@
 
   "epsilon": 8.0,
 
-  "num_steps": 10,
+  "num_steps": 5,
 
   "step_size": 2.0,
 
