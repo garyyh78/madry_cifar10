@@ -11,6 +11,8 @@ import tensorflow as tf
 
 import cifar10_input
 from restnet import Model
+import datetime
+import time
 
 
 class pgdModel:
@@ -37,8 +39,9 @@ class pgdModel:
 
         self.loss = loss
         self.grad = tf.gradients(loss, model.x_input)[0]
+        self.acc = model.accuracy
 
-    def perturb(self, sess, x_nat, y):
+    def baseline_perturb(self, sess, x_nat, y):
 
         if self.rand:
             x = x_nat + np.random.uniform(-self.epsilon, self.epsilon, x_nat.shape)
@@ -47,23 +50,49 @@ class pgdModel:
 
         for i in range(self.num_steps):
 
-            grad, loss = sess.run([self.grad, self.loss], feed_dict={self.model.x_input: x, self.model.y_input: y})
+            grad, loss, acc = sess.run([self.grad, self.loss, self.acc], feed_dict={self.model.x_input: x, self.model.y_input: y})
 
             x = np.add(x, self.step_size * np.sign(grad), out=x, casting='unsafe')
             x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
             x = np.clip(x, 0, 255)
 
-            if (i % 10 == 0):
-                print("steps %d, loss = %g\n" % (i, loss))
+            if (i % 2 == 0):
+                print("steps %d, loss = %.6f, acc = %.4f" % (i, loss, acc))
 
         return x
 
+    def _print_time(self):
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        print(st)
+
+    def perturb(self, sess, x_nat, y):
+
+        if self.rand:
+            x = x_nat + np.random.uniform(-self.epsilon*5, self.epsilon*5, x_nat.shape)
+        else:
+            x = np.copy(x_nat)
+
+        self._print_time()
+
+        for i in range(self.num_steps):
+
+            grad, loss, acc = sess.run([self.grad, self.loss, self.acc], feed_dict={self.model.x_input: x, self.model.y_input: y})
+
+            x = np.add(x, self.step_size * np.sign(grad), out=x, casting='unsafe')
+            x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
+            x = np.clip(x, 0, 255)
+
+            if (i % 2 == 0):
+                print("steps %d, loss = %.6f, acc = %.4f" % (i, loss, acc))
+
+        return x
 
 with open('config.json') as config_file:
     config = json.load(config_file)
 
-model_dir = config['nat_model_dir']
-print(model_dir, "\n")
+model_dir = config['adv_model_dir']
+print(model_dir)
 
 model_file = tf.train.latest_checkpoint(model_dir)
 
@@ -71,7 +100,7 @@ if model_file is None:
     print('No model found')
     sys.exit()
 else:
-    print(model_file, "\n")
+    print(model_file)
 
 # ugly debugging
 '''
@@ -104,13 +133,12 @@ print("cifar10 data loaded\n")
 
 with tf.Session() as sess:
     saver.restore(sess, model_file)
-    print("model restored completed\n")
+    print("model restored completed")
 
     num_eval_examples = config['num_eval_examples']
     eval_batch_size = config['eval_batch_size']
 
-    print("num_eval_examples = %d, eval_batch_size = %d\n" % (num_eval_examples, eval_batch_size))
-
+    print("num_eval_examples = %d, eval_batch_size = %d" % (num_eval_examples, eval_batch_size))
     num_batches = int(math.ceil(num_eval_examples / eval_batch_size))
     print("num_batches = %d\n" % (num_batches))
 
@@ -129,8 +157,9 @@ with tf.Session() as sess:
         x_batch_adv = attackModel.perturb(sess, x_batch, y_batch)
         x_adv.append(x_batch_adv)
 
-    print('Storing examples')
-    path = config['store_adv_path']
-    x_adv = np.concatenate(x_adv, axis=0)
-    np.save(path, x_adv)
-    print('Examples stored in {}'.format(path))
+        # repeatedly save/overwrite
+        print('Storing examples')
+        path = config['store_adv_path']
+        x_adv = np.concatenate(x_adv, axis=0)
+        np.save(path, x_adv)
+        print('Examples stored in {}'.format(path))
