@@ -2,17 +2,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import datetime
 import json
 import math
 import sys
+import time
+import os
 
 import numpy as np
 import tensorflow as tf
 
 import cifar10_input
 from restnet import Model
-import datetime
-import time
 
 
 class pgdModel:
@@ -50,7 +51,8 @@ class pgdModel:
 
         for i in range(self.num_steps):
 
-            grad, loss, acc = sess.run([self.grad, self.loss, self.acc], feed_dict={self.model.x_input: x, self.model.y_input: y})
+            grad, loss, acc = sess.run([self.grad, self.loss, self.acc],
+                                       feed_dict={self.model.x_input: x, self.model.y_input: y})
 
             x = np.add(x, self.step_size * np.sign(grad), out=x, casting='unsafe')
             x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
@@ -69,7 +71,7 @@ class pgdModel:
     def perturb(self, sess, x_nat, y):
 
         if self.rand:
-            x = x_nat + np.random.uniform(-self.epsilon*5, self.epsilon*5, x_nat.shape)
+            x = x_nat + np.random.uniform(-self.epsilon * 5, self.epsilon * 5, x_nat.shape)
         else:
             x = np.copy(x_nat)
 
@@ -77,7 +79,8 @@ class pgdModel:
 
         for i in range(self.num_steps):
 
-            grad, loss, acc = sess.run([self.grad, self.loss, self.acc], feed_dict={self.model.x_input: x, self.model.y_input: y})
+            grad, loss, acc = sess.run([self.grad, self.loss, self.acc],
+                                       feed_dict={self.model.x_input: x, self.model.y_input: y})
 
             x = np.add(x, self.step_size * np.sign(grad), out=x, casting='unsafe')
             x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
@@ -87,6 +90,7 @@ class pgdModel:
                 print("steps %d, loss = %.6f, acc = %.4f" % (i, loss, acc))
 
         return x
+
 
 with open('config.json') as config_file:
     config = json.load(config_file)
@@ -145,9 +149,17 @@ with tf.Session() as sess:
     x_adv = []  # adv accumulator
     print('Iterating over {} batches'.format(num_batches))
 
+    path = config['store_adv_path']
+
     for i in range(num_batches):
+
         bstart = i * eval_batch_size
         bend = min(bstart + eval_batch_size, num_eval_examples)
+
+        filename = "%s.bs%d.b%04d" % (path, eval_batch_size, i)
+        if os.path.exists(filename):
+            print( "%s is generated, skip .. " % filename )
+            continue;
 
         print("bStart = %d, bEnd = %d, bSize = %d" % (bstart, bend, bend - bstart))
 
@@ -157,9 +169,7 @@ with tf.Session() as sess:
         x_batch_adv = attackModel.perturb(sess, x_batch, y_batch)
         x_adv.append(x_batch_adv)
 
-        # repeatedly save/overwrite
-        print('Storing examples')
-        path = config['store_adv_path']
+        # repeatedly save/overwrite, note x_adv is cumulative
         x_adv = np.concatenate(x_adv, axis=0)
-        np.save(path, x_adv)
-        print('Examples stored in {}'.format(path))
+        np.save(filename, x_adv)
+        print("%s saved" % filename)
