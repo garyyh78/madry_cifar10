@@ -5,9 +5,9 @@ from __future__ import print_function
 import datetime
 import json
 import math
+import os
 import sys
 import time
-import os
 
 import numpy as np
 import tensorflow as tf
@@ -148,7 +148,6 @@ with tf.Session() as sess:
 
     x_adv = []  # adv accumulator
     print('Iterating over {} batches'.format(num_batches))
-
     path = config['store_adv_path']
 
     for i in range(num_batches):
@@ -157,8 +156,14 @@ with tf.Session() as sess:
         bend = min(bstart + eval_batch_size, num_eval_examples)
 
         filename = "%s.bs%d.b%04d" % (path, eval_batch_size, i)
-        if os.path.exists(filename):
-            print( "%s is generated, skip .. " % filename )
+        file = filename + ".npy"
+
+        if os.path.exists(file):
+            z = np.load(file)
+            print("%s is generated, loading ... size %s" % (file, z.shape))
+            x_adv.append(z)
+            print("x_adv length = %s" % len(x_adv))
+
             continue;
 
         print("bStart = %d, bEnd = %d, bSize = %d" % (bstart, bend, bend - bstart))
@@ -170,6 +175,7 @@ with tf.Session() as sess:
         x_adv.append(x_batch_adv)
 
         # repeatedly save/overwrite, note x_adv is cumulative
-        x_adv = np.concatenate(x_adv, axis=0)
-        np.save(filename, x_adv)
-        print("%s saved" % filename)
+        x_save = np.concatenate(x_adv, axis=0)
+        np.save(filename, x_save)
+        print("last batch = %d, saved to %s" % (i, filename))
+

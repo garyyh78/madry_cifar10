@@ -17,7 +17,7 @@ def run_attack(checkpoint, x_adv, epsilon):
     model = Model(mode='eval')
     saver = tf.train.Saver()
 
-    num_eval_examples = 100
+    num_eval_examples = adv_count
     eval_batch_size = 100
 
     num_batches = int(math.ceil(num_eval_examples / eval_batch_size))
@@ -73,7 +73,8 @@ print(model_dir)
 checkpoint = tf.train.latest_checkpoint(model_dir)
 print(checkpoint)
 
-attackFile = config['store_adv_path'] + ".bs100.b0000" + ".npy"
+attackFile = config['store_adv_path'] + ".bs100.b0001" + ".npy"
+
 print(attackFile)
 x_adv = np.load(attackFile)
 adv_count = x_adv.shape[0]
