@@ -79,10 +79,17 @@ class pgdModel:
 
         for i in range(self.num_steps):
 
+            if i < 3:
+                beta = 2.0
+            elif i < 6:
+                beta = 1.5
+            else:
+                beta = 1.0
+
             grad, loss, acc = sess.run([self.grad, self.loss, self.acc],
                                        feed_dict={self.model.x_input: x, self.model.y_input: y})
 
-            x = np.add(x, self.step_size * np.sign(grad), out=x, casting='unsafe')
+            x = np.add(x, beta*self.step_size * np.sign(grad), out=x, casting='unsafe')
             x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
             x = np.clip(x, 0, 255)
 
@@ -146,11 +153,12 @@ with tf.Session() as sess:
     num_batches = int(math.ceil(num_eval_examples / eval_batch_size))
     print("num_batches = %d\n" % (num_batches))
 
-    x_adv = []  # adv accumulator
     print('Iterating over {} batches'.format(num_batches))
     path = config['store_adv_path']
 
     for i in range(num_batches):
+
+        x_adv = []  # adv accumulator
 
         bstart = i * eval_batch_size
         bend = min(bstart + eval_batch_size, num_eval_examples)
@@ -159,11 +167,7 @@ with tf.Session() as sess:
         file = filename + ".npy"
 
         if os.path.exists(file):
-            z = np.load(file)
-            print("%s is generated, loading ... size %s" % (file, z.shape))
-            x_adv.append(z)
-            print("x_adv length = %s" % len(x_adv))
-
+            print("%s is generated, skip..." % (file))
             continue;
 
         print("bStart = %d, bEnd = %d, bSize = %d" % (bstart, bend, bend - bstart))
@@ -175,7 +179,7 @@ with tf.Session() as sess:
         x_adv.append(x_batch_adv)
 
         # repeatedly save/overwrite, note x_adv is cumulative
-        x_save = np.concatenate(x_adv, axis=0)
-        np.save(filename, x_save)
+        x_adv = np.concatenate(x_adv, axis=0)
+        np.save(filename, x_adv)
         print("last batch = %d, saved to %s" % (i, filename))
 
