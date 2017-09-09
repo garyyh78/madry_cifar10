@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import json
 import math
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -18,10 +19,8 @@ def run_attack(checkpoint, x_adv, epsilon):
     saver = tf.train.Saver()
 
     num_eval_examples = adv_count
-    eval_batch_size = 100
 
     num_batches = int(math.ceil(num_eval_examples / eval_batch_size))
-
     total_corr = 0
 
     # another round of check
@@ -73,12 +72,25 @@ print(model_dir)
 checkpoint = tf.train.latest_checkpoint(model_dir)
 print(checkpoint)
 
-attackFile = config['store_adv_path'] + ".bs100.b0001" + ".npy"
+# merge deach batch
+eval_batch_size = 100
+num_files = 100
+path = config['store_adv_path']
+x_adv = []
+for i in range(num_files):
 
-print(attackFile)
-x_adv = np.load(attackFile)
+    filename = "%s.bs%d.b%04d" % (path, eval_batch_size, i)
+    file = filename + ".npy"
+
+    if os.path.exists(file):
+        print("loading file %s...." % file)
+        z = np.load(file)
+        x_adv.append(z)
+
+x_adv = np.concatenate(x_adv, axis=0)
 adv_count = x_adv.shape[0]
-print(adv_count)
+print("total count loaded is %d" % adv_count)
+np.save("finalAttack", x_adv)
 
 # sanity checks
 if checkpoint is None:
