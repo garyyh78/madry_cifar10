@@ -31,7 +31,7 @@
 
   "epsilon": 8.0,
   "num_steps": 10,
-  "step_size": 2.0,
+  "step_size": 1.0,
   "random_start": true,
   "loss_func": "xent",
   "store_adv_path": "attack.npy"

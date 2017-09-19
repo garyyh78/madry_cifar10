@@ -68,7 +68,10 @@ class pgdModel:
         st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
         print(st)
 
-    def perturb(self, sess, x_nat, y):
+    # about 75%
+    # simply trying to use a different starting point
+    # probably should not use the adv model to train
+    def perturb_v2(self, sess, x_nat, y):
 
         if self.rand:
             x = x_nat + np.random.uniform(-self.epsilon * 5, self.epsilon * 5, x_nat.shape)
@@ -89,7 +92,7 @@ class pgdModel:
             grad, loss, acc = sess.run([self.grad, self.loss, self.acc],
                                        feed_dict={self.model.x_input: x, self.model.y_input: y})
 
-            x = np.add(x, beta*self.step_size * np.sign(grad), out=x, casting='unsafe')
+            x = np.add(x, beta * self.step_size * np.sign(grad), out=x, casting='unsafe')
             x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
             x = np.clip(x, 0, 255)
 
@@ -98,11 +101,58 @@ class pgdModel:
 
         return x
 
+    def perturb(self, sess, x_nat, y):
+
+        # starting point
+        if self.rand:
+            x = x_nat + np.random.uniform(-self.epsilon, self.epsilon, x_nat.shape)
+        else:
+            x = np.copy(x_nat)
+
+        self._print_time()
+
+        # construct semi model
+        semi_batch = 2
+        semi_batch_size = self.num_steps // 2
+
+        for b in range(semi_batch):
+
+            # don't use true label, use some random label
+            y_rand = y
+            np.random.shuffle(y_rand)
+
+            for i in range(semi_batch_size):
+                acc, loss, grad = sess.run([self.acc, self.loss, self.grad],
+                                           feed_dict={self.model.x_input: x, self.model.y_input: y_rand})
+
+                # minimize so negative grad
+                x = np.add(x, -self.step_size * np.sign(grad), out=x, casting='unsafe')
+
+                # project back to feasible region
+                d = np.subtract(x, x_nat, casting='unsafe')
+                d_max = np.amax(np.absolute(d))
+                d = np.multiply(d, self.epsilon / d_max, out=d)
+
+                # clip
+                x = np.add(x_nat, d, out=x, casting='unsafe')
+                x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
+                x = np.clip(x, 0, 255)
+
+                print("steps %d : %d, loss = %.2f, acc = %.2f" % (b, i, loss, acc))
+
+        loss, acc = sess.run([self.loss, self.acc],
+                             feed_dict={self.model.x_input: x, self.model.y_input: y})
+
+        print("final: loss = %.2f, acc = %.2f" % (loss, acc))
+
+        return x
+
 
 with open('config.json') as config_file:
     config = json.load(config_file)
 
-model_dir = config['adv_model_dir']
+# it is better to start with natural model
+model_dir = config['nat_model_dir']
 print(model_dir)
 
 model_file = tf.train.latest_checkpoint(model_dir)
@@ -163,7 +213,7 @@ with tf.Session() as sess:
         bstart = i * eval_batch_size
         bend = min(bstart + eval_batch_size, num_eval_examples)
 
-        filename = "%s.bs%d.b%04d" % (path, eval_batch_size, i)
+        filename = "%s.v2.%d.b%04d" % (path, eval_batch_size, i)
         file = filename + ".npy"
 
         if os.path.exists(file):
@@ -182,4 +232,3 @@ with tf.Session() as sess:
         x_adv = np.concatenate(x_adv, axis=0)
         np.save(filename, x_adv)
         print("last batch = %d, saved to %s" % (i, filename))
-
