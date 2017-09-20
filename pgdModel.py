@@ -118,7 +118,7 @@ class pgdModel:
         for b in range(semi_batch):
 
             # don't use true label, use some random label
-            y_rand = y
+            y_rand = np.copy(y)
             np.random.shuffle(y_rand)
 
             for i in range(semi_batch_size):
