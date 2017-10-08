@@ -101,7 +101,9 @@ class pgdModel:
 
         return x
 
-    def perturb(self, sess, x_nat, y):
+    # about 85%
+    # maybe we indeed should start with advModel not natModel ??
+    def perturb_v3(self, sess, x_nat, y):
 
         # starting point
         if self.rand:
@@ -144,6 +146,38 @@ class pgdModel:
                              feed_dict={self.model.x_input: x, self.model.y_input: y})
 
         print("final: loss = %.2f, acc = %.2f" % (loss, acc))
+
+        return x
+
+    # some research code
+    def perturb(self, sess, x_nat, y):
+
+        totalIter = 5
+        maxeps = 5
+        step_size = 2
+
+        for j in range(maxeps):
+
+            eps = 2 * j + 1
+
+            # starting point
+            if self.rand:
+                x = x_nat + np.random.uniform(-eps, eps, x_nat.shape)
+            else:
+                x = np.copy(x_nat)
+
+            self._print_time()
+
+            for i in range(totalIter):
+                # eval
+                grad, loss, acc = sess.run([self.grad, self.loss, self.acc],
+                                           feed_dict={self.model.x_input: x, self.model.y_input: y})
+                print("%d/%d, loss = %.1f, acc = %.2f" % (eps, i, loss, acc))
+
+                # update
+                x = np.add(x, step_size * np.sign(grad), out=x, casting='unsafe')
+                x = np.clip(x, x_nat - eps, x_nat + eps)
+                x = np.clip(x, 0, 255)
 
         return x
 
@@ -213,7 +247,7 @@ with tf.Session() as sess:
         bstart = i * eval_batch_size
         bend = min(bstart + eval_batch_size, num_eval_examples)
 
-        filename = "%s.v2.%d.b%04d" % (path, eval_batch_size, i)
+        filename = "%s.r1.%d.b%04d" % (path, eval_batch_size, i)
         file = filename + ".npy"
 
         if os.path.exists(file):

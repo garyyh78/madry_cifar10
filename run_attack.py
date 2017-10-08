@@ -79,7 +79,7 @@ path = config['store_adv_path']
 x_adv = []
 for i in range(num_files):
 
-    filename = "%s.bs%d.b%04d" % (path, eval_batch_size, i)
+    filename = "%s.v2.%d.b%04d" % (path, eval_batch_size, i)
     file = filename + ".npy"
 
     if os.path.exists(file):

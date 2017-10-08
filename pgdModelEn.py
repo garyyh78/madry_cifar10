@@ -55,28 +55,55 @@ class pgdModelEn:
 
         self._print_time()
 
+        prev_total_loss = -1
+        prev_total_acc = -1
+
         for i in range(self.num_steps):
 
+            # speed up
+            if i > 5:
+                size_mult = 1  # step 6 and above
+            elif i > 2:
+                size_mult = 2  # step 3, 4, 5
+            else:
+                size_mult = 4  # step 0, 1, 2
+
             # perturb twice
+            total_loss = 0
+            total_acc = 0
             for sess_, _, model_, loss_, grad_, acc_ in self.sess_graph_model_loss_grad_acc_list:
                 with sess_.as_default():
                     grad, loss, acc = sess_.run([grad_, loss_, acc_],
                                                 feed_dict={model_.x_input: x, model_.y_input: y}
                                                 )
 
-                    x = np.add(x, self.step_size * np.sign(grad), out=x, casting='unsafe')
+                    x = np.add(x, size_mult * self.step_size * np.sign(grad), out=x, casting='unsafe')
                     x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
                     x = np.clip(x, 0, 255)
 
-                    print("steps %d, loss = %.6f, acc = %.4f" % (i, loss, acc))
+                    print("steps %d, loss = %.1f, acc = %.2f" % (i, loss, acc))
+
+                    total_loss += loss
+                    total_acc += acc
+
+            # check early stop conditions
+            loss_delta = total_loss - prev_total_loss
+            acc_delta = total_acc - prev_total_acc
+            if prev_total_loss > 0 and loss_delta < 10 and prev_total_acc > 0 and acc_delta > -0.01:
+                print("stop: prev loss = %.1f curr loss = %.1f prev acc = %.2f curr acc = %.2f" % (
+                    prev_total_loss, total_loss, prev_total_acc, total_acc))
+                break
+            else:
+                prev_total_loss = total_loss
+                prev_total_acc = total_acc
 
         return x
 
-
+# main configure file
 with open('config.json') as config_file:
     config = json.load(config_file)
 
-# Model
+# Model prep
 model_dirs = [config['nat_model_dir'], config['adv_model_dir']]
 sess_graph_file_models = []
 
@@ -112,7 +139,7 @@ for sess, graph, file, _ in sess_graph_file_models:
             model_saver = tf.train.Saver(tf.global_variables())
             model_saver.restore(sess, file)
 
-# Data
+# Data prep
 data_path = config['data_path']
 print(data_path, "\n")
 cifar = cifar10_input.CIFAR10Data(data_path)
@@ -128,7 +155,7 @@ print("num_batches = %d\n" % (num_batches))
 print('Iterating over {} batches'.format(num_batches))
 path = config['store_adv_path']
 
-# Run
+# Run attack
 for i in range(num_batches):
 
     x_adv = []  # adv accumulator
@@ -156,5 +183,6 @@ for i in range(num_batches):
     np.save(filename, x_adv)
     print("last batch = %d, saved to %s" % (i, filename))
 
+# shutdown
 for sess, _, _, _ in sess_graph_file_models:
     sess.close()
