@@ -3,6 +3,7 @@
 
   "adv_model_dir": "models/adv_trained",
   "nat_model_dir": "models/naturally_trained",
+  "my01_model_dir": "models/my01_trained",
 
   "_comment": "===== DATASET CONFIGURATION =====",
 
@@ -10,12 +11,12 @@
 
   "_comment": "===== TRAINING CONFIGURATION =====",
 
-  "tf_random_seed": 451760341,
-  "np_random_seed": 216105420,
+  "tf_random_seed": 453760341,
+  "np_random_seed": 216106420,
   "max_num_training_steps": 80000,
-  "num_output_steps": 100,
+  "num_output_steps": 10,
   "num_summary_steps": 100,
-  "num_checkpoint_steps": 1000,
+  "num_checkpoint_steps": 10,
   "training_batch_size": 128,
   "step_size_schedule": [[0, 0.1], [40000, 0.01], [60000, 0.001]],
   "weight_decay": 0.0002,
@@ -30,9 +31,10 @@
   "_comment": "=====ADVERSARIAL EXAMPLES CONFIGURATION=====",
 
   "epsilon": 8.0,
-  "num_steps": 10,
+  "num_steps": 50,
   "step_size": 1.0,
   "random_start": true,
   "loss_func": "xent",
-  "store_adv_path": "attack.npy"
+  "store_adv_path": "attack.npy",
+  "final_store_adv_path": "finalAttackEn.npy"
 }
