@@ -27,7 +27,7 @@ class pgdModelBasic:
         elif loss_func == 'cw':
             label_mask = tf.one_hot(model.y_input, Model.CIFAR_CLASS)
             pLogit = tf.reduce_sum(label_mask * model.pre_softmax, axis=1)
-            nLogit = tf.reduce_max((1 - label_mask) * model.pre_softmax, axis=1)
+            nLogit = tf.reduce_max((1 - label_mask) * model.pre_softmax - 1e4*label_mask, axis=1)
             loss = -tf.nn.relu(pLogit - nLogit + pgdModelBasic.offSet)
         else:
             print('Unknown loss function. Defaulting to cross-entropy')
@@ -53,8 +53,7 @@ class pgdModelBasic:
             x = np.clip(x, x_nat - self.epsilon, x_nat + self.epsilon)
             x = np.clip(x, 0, 255)
 
-            if (i % 2 == 0):
-                print("steps %d, loss = %.6f, acc = %.4f" % (i, loss, acc))
+            print(" ---- perturb step = %d, loss = %.1f, acc = %.2f" % (i, loss, acc))
 
         return x
 

@@ -32,7 +32,7 @@ class pgdModel:
         elif loss_func == 'cw':
             label_mask = tf.one_hot(model.y_input, Model.CIFAR_CLASS)
             pLogit = tf.reduce_sum(label_mask * model.pre_softmax, axis=1)
-            nLogit = tf.reduce_max((1 - label_mask) * model.pre_softmax, axis=1)
+            nLogit = tf.reduce_max((1 - label_mask) * model.pre_softmax- 1e4*label_mask, axis=1)
             loss = -tf.nn.relu(pLogit - nLogit + pgdModel.offSet)
         else:
             print('Unknown loss function. Defaulting to cross-entropy')

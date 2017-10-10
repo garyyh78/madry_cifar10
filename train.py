@@ -56,8 +56,8 @@ train_step = tf.train.MomentumOptimizer(learning_rate, momentum).minimize(
 # Set up adversary model
 attack = pgdModelBasic(model,
                        config['epsilon'],
-                       10,
-                       2,
+                       4,  # num of steps
+                       2,  # step size
                        config['random_start'],
                        config['loss_func'])
 
@@ -66,16 +66,24 @@ model_dir = config['my01_model_dir']
 
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
+    model_file = ""
+else:
+    model_file = tf.train.latest_checkpoint(model_dir)
 
 # keep the configuration file with the model for reproducibility
 shutil.copy('config.json', model_dir)
-saver = tf.train.Saver(max_to_keep=3)
+saver = tf.train.Saver(max_to_keep=1)
 
 with tf.Session() as sess:
+    if model_file:
+        saver.restore(sess, model_file)
+        print("model restore completed: " + model_file)
+    else:
+        sess.run(tf.global_variables_initializer())
+
     # initialize data augmentation
     cifar = cifar10_input.AugmentedCIFAR10Data(raw_cifar, sess, model)
 
-    sess.run(tf.global_variables_initializer())
     training_time = 0.0
 
     # Main training loop
@@ -88,6 +96,7 @@ with tf.Session() as sess:
         x_batch_adv = attack.baseline_perturb(sess, x_batch, y_batch)
         end = timer()
         training_time += end - start
+        print("perturbed")
 
         nat_dict = {model.x_input: x_batch,
                     model.y_input: y_batch}
@@ -121,3 +130,4 @@ with tf.Session() as sess:
         sess.run(train_step, feed_dict=adv_dict)
         end = timer()
         training_time += end - start
+        print("trained")
